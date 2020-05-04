@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import argparse
+import math
 import os
 import re
 import subprocess
@@ -270,6 +271,61 @@ class Itermocil(object):
                     i += 1
                     self.applescript.append(create_pane(qp, cp, "vertical"))
 
+        elif layout == "custom":
+            # num_panes == 31
+            rows = int(round(math.sqrt(num_panes)))                           # 6
+            col_per_rows = int(math.ceil(1. * num_panes / rows))              # 31 / 6 = 5+ = 6
+            rows_with_more_panes = rows - (rows * col_per_rows - num_panes)   # 6 - (6*6 - 31) = 6 - (5) = 1
+
+            i = 1
+
+            # return (''' tell pane_{pp}
+            #                 set pane_{cp} to (split {o}ly with same profile)
+            #             end tell
+            #         '''.format(pp=parent, cp=child, o=split))
+            for p in range(rows - 1):
+                pp = min(p, rows_with_more_panes) * col_per_rows + max(0, p - rows_with_more_panes) * (col_per_rows - 1) + 1
+                cp = pp + (col_per_rows if (p+1) <= rows_with_more_panes else col_per_rows - 1)
+                i += 1
+                self.applescript.append(create_pane(pp, cp, "horizontal"))
+
+            for p in range(rows):
+                pp = (p * col_per_rows) + 1
+
+                pp = min(p, rows_with_more_panes) * col_per_rows + max(0, p - rows_with_more_panes) * (col_per_rows - 1) + 1
+
+                for q in range(col_per_rows-1):
+                    if i >= num_panes:
+                        break
+                    if (p + 1) > rows_with_more_panes and q == col_per_rows-2:
+                        continue
+                    qp = pp + q
+                    cp = pp + 1 + q
+                    i += 1
+                    self.applescript.append(create_pane(qp, cp, "vertical"))
+
+
+
+            # vertical_splits = int(ceil((1. * num_panes / n))) - 1
+            # second_columns = num_panes / n
+            # i = 1
+
+            # for p in range(0, vertical_splits):
+            #     pp = (p * n) + 1
+            #     cp = pp + n
+            #     i += 1
+            #     self.applescript.append(create_pane(pp, cp, "horizontal"))
+
+            # for p in range(0, vertical_splits+1):
+            #     pp = (p * n) + 1
+            #     for q in range(0, (n-1)):
+            #         if i >= num_panes:
+            #             break
+            #         qp = pp + q
+            #         cp = pp + 1 + q
+            #         i += 1
+            #         self.applescript.append(create_pane(qp, cp, "vertical"))
+
         # Raise an exception if we don't recognise the layout setting.
         else:
             raise ValueError("Unknown layout setting.")
@@ -443,7 +499,7 @@ class Itermocil(object):
         # Setting the pane name is mercifully the same across both
         # iTerm versions.
         if name:
-            name_command = 'set name to "' + name + '"'
+            name_command = 'set name to "' + str(name) + '"'
 
         # Turn commands list into a string command
         command = "; ".join(commands)
@@ -451,7 +507,7 @@ class Itermocil(object):
         # Build the applescript snippet.
         self.applescript.append(
             ''' tell {tell_target}
-                    write text "{command}"
+                    write text " {command}; clear"
                     {name}
                 end tell
             '''.format(tell_target=tell_target, command=command, name=name_command))
